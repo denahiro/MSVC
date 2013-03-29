@@ -1,0 +1,17 @@
+#temps and hidden
+.*
+*~
+
+#include gitignore
+!.gitignore
+
+#builds
+dist/*
+
+#private editor data
+nbproject/private/*
+
+#generated
+server/*
+
+
