@@ -12,8 +12,6 @@ import java.io.OutputStream;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  *
@@ -56,6 +54,8 @@ public class ServerHandler {
                 this.comThread=new Thread(this.serverCom);
                 this.comThread.start();
                 this.updateServerState(ServerState.RUNNING);
+            } else {
+                throw new IllegalStateException("Can't launch server.");
             }
         }
     }
@@ -78,6 +78,8 @@ public class ServerHandler {
                     this.serverCom=null;
                     this.updateServerState(ServerState.STOPPED);
                 }
+            } else {
+                throw new IllegalStateException("Can't stop server.");
             }
         }
     }
@@ -123,6 +125,7 @@ public class ServerHandler {
     public void updateServer() throws IOException{
         synchronized(this) {
             if(this.getServerState()==ServerState.STOPPED) {
+                SERVER_DIRECTORY.mkdir();
                 try (InputStream netIn = SERVER_SOURCE.toURL().openStream();
                     OutputStream fileOut=new FileOutputStream(ServerHandler.SERVER_JAR)) {
                     updateServerState(ServerState.UPDATING);
@@ -133,6 +136,8 @@ public class ServerHandler {
                 } finally {
                     updateServerState(ServerState.STOPPED);
                 }
+            }  else {
+                throw new IllegalStateException("Can't update server.");
             }
         }
     }

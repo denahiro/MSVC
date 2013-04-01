@@ -7,8 +7,6 @@ package ch.prometheus.msvc.gui;
 import ch.prometheus.msvc.server.PrintListener;
 import ch.prometheus.msvc.server.ServerHandler;
 import ch.prometheus.msvc.server.ServerStateListener;
-import java.awt.Point;
-import java.awt.Rectangle;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.WindowAdapter;
@@ -30,6 +28,10 @@ import javax.swing.SwingConstants;
 public class MainGUI extends javax.swing.JFrame{
 
     private final ServerHandler myServerHandler;
+    
+    private ServerTask myServerTask;
+    private final Object myServerTaskMutex=new Object();
+    
     public MainGUI(){
         this.myServerHandler=new ServerHandler(new PrintListener() {
             @Override
@@ -47,14 +49,9 @@ public class MainGUI extends javax.swing.JFrame{
     private final JScrollPane serverOutputScrollPane=new JScrollPane(serverOutputTextArea);
     
     private void initComponents() {
-//        this.serverStateButton = new JButton();
-//        this.serverInputLine = new JTextField();
-//        this.serverOutputScrollPane = new JScrollPane();
-//        this.serverOutputTextArea=new JTextArea();
         this.serverOutputTextArea.setLineWrap(true);
         this.serverOutputTextArea.setWrapStyleWord(true);
         this.serverOutputScrollPane.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS);
-//        this.serverOutputScrollPane.add(this.serverOutputTextArea);
 
         setDefaultCloseOperation(javax.swing.WindowConstants.DO_NOTHING_ON_CLOSE);
         addWindowListener(new WindowAdapter() {
@@ -129,10 +126,10 @@ public class MainGUI extends javax.swing.JFrame{
     
     private void serverStateButtonAction(ActionEvent event) {
         synchronized(this.serverStateButton) {
-            if(this.myServerHandler.getServerState()== ServerHandler.ServerState.STOPPED) {
-                (new Thread(new Runnable() {
+            if(this.myServerHandler.getServerState()==ServerHandler.ServerState.STOPPED) {
+                this.addServerTask(new ServerTask() {
                     @Override
-                    public void run() {
+                    public void runImpl() {
                         try {
                             MainGUI.this.myServerHandler.launchServer();
                         } catch (IOException e) {
@@ -140,14 +137,14 @@ public class MainGUI extends javax.swing.JFrame{
                             System.out.println(e);
                         }
                     }
-                })).start();
+                });
             } else if(this.myServerHandler.getServerState()== ServerHandler.ServerState.RUNNING) {
-                (new Thread(new Runnable() {
+                this.addServerTask(new ServerTask() {
                     @Override
-                    public void run() {
+                    public void runImpl() {
                         MainGUI.this.myServerHandler.shutdownServer();
                     }
-                })).start();
+                });
             }
         }
     }
@@ -155,9 +152,9 @@ public class MainGUI extends javax.swing.JFrame{
     private void serverUpdateButtonAction(ActionEvent event) {
         synchronized(this.serverStateButton) {
             if(this.myServerHandler.getServerState()== ServerHandler.ServerState.STOPPED) {
-                (new Thread(new Runnable() {
+                this.addServerTask(new ServerTask() {
                     @Override
-                    public void run() {
+                    public void runImpl() {
                         try {
                             MainGUI.this.myServerHandler.updateServer();
                         } catch (IOException e) {
@@ -165,7 +162,7 @@ public class MainGUI extends javax.swing.JFrame{
                             System.out.println(e);
                         }
                     }
-                })).start();
+                });
             }
         }
     }
@@ -200,6 +197,27 @@ public class MainGUI extends javax.swing.JFrame{
     private void serverOutputPrintLine(String newLine) {
         this.serverOutputTextArea.append(newLine+System.lineSeparator());
         this.serverOutputTextArea.setCaretPosition(this.serverOutputTextArea.getDocument().getLength());
-//        this.serverOutputTextArea.repaint();
+    }
+    
+    private void addServerTask(ServerTask toAdd) {
+        synchronized(this.myServerTaskMutex) {
+            if(this.myServerTask==null) {
+                this.myServerTask=toAdd;
+                (new Thread(this.myServerTask)).start();
+            } else {
+                this.serverOutputPrintLine("The server is currently busy.");
+            }
+        }
+    }
+    
+    private abstract class ServerTask implements Runnable {
+
+        @Override
+        public final void run() {
+            this.runImpl();
+            MainGUI.this.myServerTask=null;
+        }
+        
+        public abstract void runImpl();
     }
 }
