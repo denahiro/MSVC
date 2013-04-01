@@ -66,9 +66,7 @@ public class ServerHandler {
                 this.updateServerState(ServerState.STOPPING);
                 this.serverCom.println("stop");
                 try {
-//                    this.comThread.interrupt();
                     this.serverInstance.waitFor();
-                    System.out.println(this.serverInstance.exitValue());
                     this.comThread.join();
                 } catch(InterruptedException e) {
 
