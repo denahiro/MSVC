@@ -7,7 +7,6 @@ package ch.prometheus.msvc.server;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.util.logging.Logger;
 
@@ -37,8 +36,9 @@ public class Communicator implements Runnable{
     @Override
     public void run(){
         try {
-            while(!Thread.interrupted()) {
-                this.output.println(this.fromServer.readLine());
+            String data;
+            while(!Thread.interrupted() && (data=this.fromServer.readLine())!=null) {
+                this.output.println(data);
             }
             this.fromServer.close();
         } catch (IOException e) {
