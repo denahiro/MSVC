@@ -4,13 +4,10 @@
  */
 package ch.prometheus.msvc.server;
 
-import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.io.PrintWriter;
+import java.util.ArrayList;
+import java.util.Collection;
 
 /**
  *
@@ -18,68 +15,92 @@ import java.io.PrintWriter;
  */
 public class ServerHandler {
     
-    private Process serverInstance=null;
-    private PrintWriter serverInput=null;
-    private java.io.BufferedReader serverOutput=null;
-    
-    private ServerHandler(){
-        
+    public enum ServerState {
+        RUNNING,STOPPED,LAUNCHING,STOPPING
     }
     
-    private static class Holder {
-        public final static ServerHandler INSTANCE=new ServerHandler();
+    private ServerState currentState=ServerState.STOPPED;
+    private final Object currentStateMutex=new Object();
+    
+    private final Collection<ServerStateListener> serverStateListeners;
+    
+    private Process serverInstance;
+    private Communicator serverCom;
+    private Thread comThread;
+    private final PrintListener output;    
+    
+    public ServerHandler(PrintListener output){
+        this.serverStateListeners = new ArrayList<>();
+        this.output=output;
     }
     
-    public static void launchServer() throws IOException{
-        if(Holder.INSTANCE.serverInstance==null) {
-            ProcessBuilder serverBuilder=new ProcessBuilder("java","-Xmx1024M","-Xms1024M","-jar","minecraft_server.jar","nogui");
-            serverBuilder.directory(new File("server"));
-            Holder.INSTANCE.serverInstance=serverBuilder.start();
-            Holder.INSTANCE.serverInput=new PrintWriter(Holder.INSTANCE.serverInstance.getOutputStream());
-            Holder.INSTANCE.serverOutput=new BufferedReader(new InputStreamReader(Holder.INSTANCE.serverInstance.getInputStream()));
-        } else {
-            throw new IllegalStateException("Server already running.");
-        }
-    }
-    
-    public static void shutdownServer() {
-        if(Holder.INSTANCE.serverInstance!=null) {
-            writeLine("stop");
-            try {
-                Holder.INSTANCE.serverInstance.waitFor();
-                System.out.println(Holder.INSTANCE.serverInstance.exitValue());
-            } catch(InterruptedException e) {
-                
-            } finally {
-                Holder.INSTANCE.serverInstance=null;
-                Holder.INSTANCE.serverInput.close();
-                Holder.INSTANCE.serverInput=null;
-                try {
-                    Holder.INSTANCE.serverOutput.close();
-                } catch (IOException e) {
-                }
-                Holder.INSTANCE.serverOutput=null;
+    public void launchServer() throws IOException{
+        synchronized(this) {
+            if(this.getServerState()==ServerState.STOPPED) {
+                this.updateServerState(ServerState.LAUNCHING);
+                ProcessBuilder serverBuilder=new ProcessBuilder("java","-Xmx1024M","-Xms1024M","-jar","minecraft_server.jar","nogui");
+                serverBuilder.directory(new File("server"));
+                this.serverInstance=serverBuilder.start();
+                this.serverCom=new Communicator(this.output, this.serverInstance);
+                this.comThread=new Thread(this.serverCom);
+                this.comThread.start();
+                this.updateServerState(ServerState.RUNNING);
+            } else {
+                throw new IllegalStateException("Server already running.");
             }
-        } else {
-            throw new IllegalStateException("No server running.");
         }
     }
     
-    public static void writeLine(String line) {
-        Holder.INSTANCE.serverInput.println(line);
-        Holder.INSTANCE.serverInput.flush();
-    }
-    
-    public static String readLine() {
-        try{
-            return Holder.INSTANCE.serverOutput.readLine();
-        } catch(IOException e) {
-            shutdownServer();
-            return null;
+    public void shutdownServer() {
+        synchronized(this) {
+            if(this.getServerState()==ServerState.RUNNING) {
+                this.updateServerState(ServerState.STOPPING);
+                this.serverCom.println("stop");
+                try {
+                    this.comThread.interrupt();
+                    this.serverInstance.waitFor();
+                    System.out.println(this.serverInstance.exitValue());
+                    this.comThread.join();
+                } catch(InterruptedException e) {
+
+                } finally {
+                    this.serverInstance=null;
+                    this.comThread=null;
+                    this.serverCom=null;
+                    this.updateServerState(ServerState.STOPPED);
+                }
+            } else {
+                throw new IllegalStateException("No server running.");
+            }
         }
     }
     
-    public static boolean serverRunning() {
-        return Holder.INSTANCE.serverInstance!=null;
+    public void println(String line) {
+        synchronized(this) {
+            this.serverCom.println(line);
+        }
+    }
+    
+    private void updateServerState(ServerState newState) {
+        synchronized(this.currentStateMutex) {
+            this.currentState=newState;
+            synchronized(this.serverStateListeners) {
+                for(ServerStateListener ssl:this.serverStateListeners) {
+                    ssl.stateChangeEvent(this.currentState);
+                }
+            }
+        }
+    }
+    
+    public void addServerStateListener(ServerStateListener toAdd) {
+        synchronized(this.serverStateListeners) {
+            this.serverStateListeners.add(toAdd);
+        }
+    }
+    
+    public ServerState getServerState() {
+        synchronized(this.currentStateMutex) {
+            return this.currentState;
+        }
     }
 }

@@ -4,10 +4,8 @@
  */
 package ch.prometheus.msvc;
 
-import ch.prometheus.msvc.server.ServerHandler;
-import java.io.BufferedReader;
+import ch.prometheus.msvc.gui.MainGUI;
 import java.io.IOException;
-import java.io.InputStreamReader;
 
 /**
  *
@@ -15,11 +13,7 @@ import java.io.InputStreamReader;
  */
 public class MSVC {
     public static void main(String[] args) throws IOException, InterruptedException{
-        ServerHandler.launchServer();
-        BufferedReader inputReader=new BufferedReader(new InputStreamReader(System.in));
-        while(!inputReader.readLine().equals("q")) {
-            System.out.println(ServerHandler.readLine());
-        }
-        ServerHandler.shutdownServer();
+        MainGUI gui=new MainGUI();
+        gui.setVisible(true);
     }
 }
