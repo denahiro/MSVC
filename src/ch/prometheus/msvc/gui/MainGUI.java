@@ -7,6 +7,11 @@ package ch.prometheus.msvc.gui;
 import ch.prometheus.msvc.server.PrintListener;
 import ch.prometheus.msvc.server.ServerHandler;
 import ch.prometheus.msvc.server.ServerStateListener;
+import java.awt.Dimension;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.Insets;
+import java.awt.Rectangle;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.WindowAdapter;
@@ -17,6 +22,7 @@ import javax.swing.JButton;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
+import javax.swing.LayoutStyle;
 import javax.swing.ScrollPaneConstants;
 import javax.swing.SwingConstants;
 
@@ -27,6 +33,9 @@ import javax.swing.SwingConstants;
  */
 public class MainGUI extends javax.swing.JFrame{
 
+    private static final int MIN_WIDTH=600;
+    private static final int MIN_HEIGHT=400;
+    
     private final ServerHandler myServerHandler;
     
     private ServerTask myServerTask;
@@ -49,6 +58,8 @@ public class MainGUI extends javax.swing.JFrame{
     private final JScrollPane serverOutputScrollPane=new JScrollPane(serverOutputTextArea);
     
     private void initComponents() {
+        this.setMinimumSize(new Dimension(MIN_WIDTH, MIN_HEIGHT));
+        
         this.serverOutputTextArea.setLineWrap(true);
         this.serverOutputTextArea.setWrapStyleWord(true);
         this.serverOutputScrollPane.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS);
@@ -98,30 +109,32 @@ public class MainGUI extends javax.swing.JFrame{
         GroupLayout layout = new GroupLayout(getContentPane());
         getContentPane().setLayout(layout);
         layout.setHorizontalGroup(
-            layout.createParallelGroup(GroupLayout.Alignment.LEADING)
-            .addGroup(GroupLayout.Alignment.LEADING, layout.createSequentialGroup()
-                .addGroup(layout.createParallelGroup(GroupLayout.Alignment.LEADING)
-                    .addComponent(this.serverOutputScrollPane, GroupLayout.DEFAULT_SIZE, 285, Short.MAX_VALUE)
-                    .addComponent(this.serverInputLine))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                .addGroup(layout.createParallelGroup(GroupLayout.Alignment.LEADING)
-                    .addComponent(this.serverStateButton,150, 150, 150)
-                    .addComponent(this.serverUpdateButton)))
+            layout.createSequentialGroup()
+            .addGroup(layout.createParallelGroup(GroupLayout.Alignment.LEADING)
+                .addComponent(this.serverOutputScrollPane)
+                .addComponent(this.serverInputLine))
+            .addGroup(true,layout.createParallelGroup(GroupLayout.Alignment.LEADING)
+                .addComponent(this.serverStateButton,GroupLayout.PREFERRED_SIZE, 150, GroupLayout.PREFERRED_SIZE)
+                .addComponent(this.serverUpdateButton))
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
-                .addComponent(this.serverOutputScrollPane,GroupLayout.DEFAULT_SIZE,400,Short.MAX_VALUE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(this.serverInputLine,GroupLayout.DEFAULT_SIZE,GroupLayout.DEFAULT_SIZE,GroupLayout.DEFAULT_SIZE))
+                .addComponent(this.serverOutputScrollPane)
+                .addComponent(this.serverInputLine,GroupLayout.PREFERRED_SIZE,GroupLayout.DEFAULT_SIZE,GroupLayout.PREFERRED_SIZE))
             .addGroup(layout.createSequentialGroup()
                 .addComponent(this.serverStateButton)
                 .addComponent(this.serverUpdateButton))
         );
+        
         layout.linkSize(SwingConstants.HORIZONTAL, this.serverStateButton,this.serverUpdateButton);
-        layout.linkSize(SwingConstants.HORIZONTAL, this.serverOutputScrollPane,this.serverInputLine);
-
-        pack();
+        
+        layout.setAutoCreateGaps(true);
+        layout.setAutoCreateContainerGaps(true);
+        
+        Rectangle sb=this.getGraphicsConfiguration().getBounds();
+        this.setSize(sb.width/2,sb.height/2);
+        this.setLocation(sb.width/2-this.getWidth()/2,sb.height/2-this.getHeight()/2);
     }
     
     private void serverStateButtonAction(ActionEvent event) {
