@@ -30,7 +30,9 @@ public class ServerHandler {
     private ServerState currentState=ServerState.STOPPED;
     private final Object currentStateMutex=new Object();
     
-    private final Collection<ServerStateListener> serverStateListeners;
+    private final Collection<ServerStateListener> serverStateListeners = new ArrayList<>();
+    private final Collection<ServerStateListener> serverStateListenersToAdd = new ArrayList<>();
+    private final Collection<ServerStateListener> serverStateListenersToRemove = new ArrayList<>();
     
     private Process serverInstance;
     private Communicator serverCom;
@@ -38,14 +40,13 @@ public class ServerHandler {
     private final PrintListener output;    
     
     public ServerHandler(PrintListener output){
-        this.serverStateListeners = new ArrayList<>();
         this.output=output;
     }
     
     public void launchServer() throws IOException{
         synchronized(this) {
             if(this.getServerState()==ServerState.STOPPED) {
-                this.readyServerFiles();
+                assert this.isServerFilesReady();
                 this.updateServerState(ServerState.LAUNCHING);
                 ProcessBuilder serverBuilder=new ProcessBuilder("java","-Xmx1024M","-Xms1024M","-jar",SERVER_JAR.getName(),"nogui");
                 serverBuilder.directory(SERVER_DIRECTORY);
@@ -82,11 +83,13 @@ public class ServerHandler {
         }
     }
     
+    public boolean isServerFilesReady() {
+        return SERVER_DIRECTORY.exists() && SERVER_JAR.exists();
+    }
+    
     public void readyServerFiles() throws IOException{
-        if(!SERVER_DIRECTORY.exists()) {
+        if(this.isServerFilesReady()) {
             SERVER_DIRECTORY.mkdir();
-        }
-        if(!SERVER_JAR.exists()) {
             updateServer();
         }
     }
@@ -104,13 +107,27 @@ public class ServerHandler {
                 for(ServerStateListener ssl:this.serverStateListeners) {
                     ssl.stateChangeEvent(this.currentState);
                 }
+                for(ServerStateListener ssl:this.serverStateListenersToAdd) {
+                    this.serverStateListeners.add(ssl);
+                }
+                this.serverStateListenersToAdd.clear();
+                for(ServerStateListener ssl:this.serverStateListenersToRemove) {
+                    this.serverStateListeners.remove(ssl);
+                }
+                this.serverStateListenersToRemove.clear();
             }
         }
     }
     
     public void addServerStateListener(ServerStateListener toAdd) {
         synchronized(this.serverStateListeners) {
-            this.serverStateListeners.add(toAdd);
+            this.serverStateListenersToAdd.add(toAdd);
+        }
+    }
+    
+    public void removeServerStateListener(ServerStateListener toRemove) {
+        synchronized(this.serverStateListeners) {
+            this.serverStateListenersToRemove.add(toRemove);
         }
     }
     
