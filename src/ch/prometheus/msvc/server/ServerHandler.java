@@ -4,14 +4,17 @@
  */
 package ch.prometheus.msvc.server;
 
+import ch.prometheus.msvc.gui.MainGUI;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URI;
-import java.util.ArrayList;
-import java.util.Collection;
+import java.net.URLConnection;
+import java.util.Observable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  *
@@ -21,7 +24,8 @@ public class ServerHandler {
     
     public final static File SERVER_DIRECTORY=new File("server");
     public final static File SERVER_JAR=new File(SERVER_DIRECTORY,"minecraft_server.jar");
-    public final URI SERVER_SOURCE= URI.create("https://s3.amazonaws.com/MinecraftDownload/launcher/minecraft_server.jar");
+    public final static URI SERVER_SOURCE= URI.create("https://s3.amazonaws.com/MinecraftDownload/launcher/minecraft_server.jar");
+    public final static long DOWNLOAD_RESOLUTION=100;
     
     public enum ServerState {
         RUNNING,STOPPED,LAUNCHING,STOPPING,UPDATING
@@ -30,13 +34,11 @@ public class ServerHandler {
     private ServerState currentState=ServerState.STOPPED;
     private final Object currentStateMutex=new Object();
     
-    private final Collection<ServerStateListener> serverStateListeners = new ArrayList<>();
-    private final Collection<ServerStateListener> serverStateListenersToAdd = new ArrayList<>();
-    private final Collection<ServerStateListener> serverStateListenersToRemove = new ArrayList<>();
+    public final Observable serverStateObservable=new AlwaysNotifyObservable();
+    public final Observable updateStateObservable=new AlwaysNotifyObservable();
     
     private Process serverInstance;
     private Communicator serverCom;
-    private Thread comThread;
     private final PrintListener output;    
     
     public ServerHandler(PrintListener output){
@@ -51,9 +53,9 @@ public class ServerHandler {
                 ProcessBuilder serverBuilder=new ProcessBuilder("java","-Xmx1024M","-Xms1024M","-jar",SERVER_JAR.getName(),"nogui");
                 serverBuilder.directory(SERVER_DIRECTORY);
                 this.serverInstance=serverBuilder.start();
+                ExecutorHolder.EXECUTOR.execute(new ServerShutdownWaiter());
                 this.serverCom=new Communicator(this.output, this.serverInstance);
-                this.comThread=new Thread(this.serverCom);
-                this.comThread.start();
+                ExecutorHolder.EXECUTOR.execute(this.serverCom);
                 this.updateServerState(ServerState.RUNNING);
             } else {
                 throw new IllegalStateException("Can't launch server.");
@@ -66,17 +68,7 @@ public class ServerHandler {
             if(this.getServerState()==ServerState.RUNNING) {
                 this.updateServerState(ServerState.STOPPING);
                 this.serverCom.println("stop");
-                try {
-                    this.serverInstance.waitFor();
-                    this.comThread.join();
-                } catch(InterruptedException e) {
-
-                } finally {
-                    this.serverInstance=null;
-                    this.comThread=null;
-                    this.serverCom=null;
-                    this.updateServerState(ServerState.STOPPED);
-                }
+                this.serverCom=null;
             } else {
                 throw new IllegalStateException("Can't stop server.");
             }
@@ -84,13 +76,17 @@ public class ServerHandler {
     }
     
     public boolean isServerFilesReady() {
-        return SERVER_DIRECTORY.exists() && SERVER_JAR.exists();
+        synchronized(this) {
+            return SERVER_DIRECTORY.exists() && SERVER_JAR.exists();
+        }
     }
     
     public void readyServerFiles() throws IOException{
-        if(this.isServerFilesReady()) {
-            SERVER_DIRECTORY.mkdir();
-            updateServer();
+        synchronized(this) {
+            if(this.isServerFilesReady()) {
+                SERVER_DIRECTORY.mkdir();
+                updateServer();
+            }
         }
     }
     
@@ -103,31 +99,7 @@ public class ServerHandler {
     private void updateServerState(ServerState newState) {
         synchronized(this.currentStateMutex) {
             this.currentState=newState;
-            synchronized(this.serverStateListeners) {
-                for(ServerStateListener ssl:this.serverStateListeners) {
-                    ssl.stateChangeEvent(this.currentState);
-                }
-                for(ServerStateListener ssl:this.serverStateListenersToAdd) {
-                    this.serverStateListeners.add(ssl);
-                }
-                this.serverStateListenersToAdd.clear();
-                for(ServerStateListener ssl:this.serverStateListenersToRemove) {
-                    this.serverStateListeners.remove(ssl);
-                }
-                this.serverStateListenersToRemove.clear();
-            }
-        }
-    }
-    
-    public void addServerStateListener(ServerStateListener toAdd) {
-        synchronized(this.serverStateListeners) {
-            this.serverStateListenersToAdd.add(toAdd);
-        }
-    }
-    
-    public void removeServerStateListener(ServerStateListener toRemove) {
-        synchronized(this.serverStateListeners) {
-            this.serverStateListenersToRemove.add(toRemove);
+            this.serverStateObservable.notifyObservers(this.currentState);
         }
     }
     
@@ -140,20 +112,68 @@ public class ServerHandler {
     public void updateServer() throws IOException{
         synchronized(this) {
             if(this.getServerState()==ServerState.STOPPED) {
+                updateServerState(ServerState.UPDATING);
                 SERVER_DIRECTORY.mkdir();
-                try (InputStream netIn = SERVER_SOURCE.toURL().openStream();
-                    OutputStream fileOut=new FileOutputStream(ServerHandler.SERVER_JAR)) {
-                    updateServerState(ServerState.UPDATING);
+                InputStream netIn=null;
+                OutputStream fileOut=null;
+                try{
+                    URLConnection connection=SERVER_SOURCE.toURL().openConnection();
+                    long dataTotal=connection.getContentLengthLong();
+                    netIn = connection.getInputStream();
+                    fileOut=new FileOutputStream(ServerHandler.SERVER_JAR);
                     int data;
+                    long dataAmount=0;
+                    long divisor=dataTotal/DOWNLOAD_RESOLUTION;
                     while((data=netIn.read())>=0) {
                         fileOut.write(data);
+                        ++dataAmount;
+                        if(dataAmount%divisor==0) {
+                            this.updateStateObservable.notifyObservers(new ProgressInfo(dataAmount, dataTotal));
+                        }
                     }
                 } finally {
-                    updateServerState(ServerState.STOPPED);
+                    if(netIn!=null) {
+                        netIn.close();
+                    }
+                    if(fileOut!=null) {
+                        fileOut.close();
+                    }
+                    this.updateServerState(ServerState.STOPPED);
                 }
             }  else {
                 throw new IllegalStateException("Can't update server.");
             }
+        }
+    }
+    
+    private class ServerShutdownWaiter implements Runnable {
+        @Override
+        public void run() {
+            try {
+                ServerHandler.this.serverInstance.waitFor();
+            } catch(InterruptedException ie) {
+                
+            } finally {
+                ServerHandler.this.updateServerState(ServerState.STOPPED);
+            }
+        }
+    }
+    
+    public static class AlwaysNotifyObservable extends Observable {
+        @Override
+        public void notifyObservers(Object o) {
+            super.setChanged();
+            super.notifyObservers(o);
+        }
+    }
+    
+    public static class ProgressInfo {
+        public final long current;
+        public final long total;
+
+        public ProgressInfo(long current, long total) {
+            this.current = current;
+            this.total = total;
         }
     }
 }

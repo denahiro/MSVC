@@ -17,10 +17,8 @@ import javax.swing.JButton;
  */
 public class ServerStoppedControlPanel extends ControlPanel{
 
-    private final JButton stateButton=new JButton();
-    private final JButton updateButton=new JButton();
-    
-    private GroupLayout layout;
+    private final JButton stateButton=new JButton("launch server");
+    private final JButton updateButton=new JButton("update server");
     
     public ServerStoppedControlPanel(MainGUI master) {
         super(master,ServerHandler.ServerState.STOPPED);
@@ -28,10 +26,7 @@ public class ServerStoppedControlPanel extends ControlPanel{
     }
     
     private void initComponents()
-    {
-        this.stateButton.setText("launch server");
-        this.updateButton.setText("update server");
-        
+    {        
         this.stateButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -45,14 +40,14 @@ public class ServerStoppedControlPanel extends ControlPanel{
             }
         });
         
-        this.layout=new GroupLayout(this);
-        this.setLayout(this.layout);
+        GroupLayout layout=new GroupLayout(this);
+        this.setLayout(layout);
         
-        this.layout.setHorizontalGroup(this.layout.createParallelGroup(GroupLayout.Alignment.LEADING)
+        layout.setHorizontalGroup(layout.createParallelGroup(GroupLayout.Alignment.LEADING)
                 .addComponent(this.stateButton,GroupLayout.PREFERRED_SIZE,GroupLayout.DEFAULT_SIZE,Short.MAX_VALUE)
                 .addComponent(this.updateButton,GroupLayout.PREFERRED_SIZE,GroupLayout.DEFAULT_SIZE,Short.MAX_VALUE));
         
-        this.layout.setVerticalGroup(this.layout.createSequentialGroup()
+        layout.setVerticalGroup(layout.createSequentialGroup()
                 .addComponent(this.stateButton)
                 .addComponent(this.updateButton));
     }
@@ -71,6 +66,9 @@ public class ServerStoppedControlPanel extends ControlPanel{
             case UPDATING:
                 this.master.setControlPanel(new ServerUpdatingControlPanel(master,ServerHandler.ServerState.STOPPED));
                 break;
+            default:
+                throw new IllegalArgumentException("newState was "+newState+" instead of "
+                        +ServerHandler.ServerState.LAUNCHING+" or "+ServerHandler.ServerState.UPDATING+".");
         }
     }
 

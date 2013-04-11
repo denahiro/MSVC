@@ -4,6 +4,7 @@
  */
 package ch.prometheus.msvc.gui;
 
+import ch.prometheus.msvc.server.ExecutorHolder;
 import ch.prometheus.msvc.server.PrintListener;
 import ch.prometheus.msvc.server.ServerHandler;
 import java.awt.Dimension;
@@ -63,6 +64,7 @@ public class MainGUI extends javax.swing.JFrame{
                         || MainGUI.this.myServerHandler.getServerState()==ServerHandler.ServerState.RUNNING) {
                     MainGUI.this.myServerHandler.shutdownServer();
                 }
+                ExecutorHolder.EXECUTOR.shutdown();
                 MainGUI.this.dispose();
             }
         });

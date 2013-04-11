@@ -6,8 +6,9 @@ package ch.prometheus.msvc.gui;
 
 import ch.prometheus.msvc.server.ServerHandler;
 import ch.prometheus.msvc.server.ServerHandler.ServerState;
-import ch.prometheus.msvc.server.ServerStateListener;
 import java.io.IOException;
+import java.util.Observable;
+import java.util.Observer;
 import java.util.logging.Logger;
 import javax.swing.GroupLayout;
 import javax.swing.JLabel;
@@ -20,25 +21,24 @@ public class ServerLaunchingControlPanel extends ControlPanel{
     
     private final JLabel launchingLabel=new JLabel("launching server...");
     
-    private ServerStateListener serverListener;
+    private Observer serverStateObserver;
     
     public ServerLaunchingControlPanel(MainGUI master) {
         super(master,ServerHandler.ServerState.LAUNCHING);
         
-        this.serverListener=new ServerStateListener() {
+        this.serverStateObserver=new Observer() {
             @Override
-            public void stateChangeEvent(ServerState newState) {
-                ServerLaunchingControlPanel.this.changeState(newState);
+            public void update(Observable o, Object newState) {
+                ServerLaunchingControlPanel.this.changeState((ServerState) newState);
             }
         };
-        this.master.getServerHandler().addServerStateListener(this.serverListener);
+        this.master.getServerHandler().serverStateObservable.addObserver(this.serverStateObserver);
                 
         initComponents();
     }
     
     private void initComponents()
     {
-        
         GroupLayout layout= new GroupLayout(this);
         this.setLayout(layout);
         
@@ -60,13 +60,16 @@ public class ServerLaunchingControlPanel extends ControlPanel{
             case STOPPED:
                 this.master.setControlPanel(new ServerStoppedControlPanel(master));
                 break;
+            default:
+                throw new IllegalArgumentException("newState was "+newState+" instead of "
+                        +ServerHandler.ServerState.RUNNING+" or "+ServerHandler.ServerState.STOPPED+".");
         }
     }
     
     @Override
     protected void remove()
     {
-        this.master.getServerHandler().removeServerStateListener(this.serverListener);
+        this.master.getServerHandler().serverStateObservable.deleteObserver(this.serverStateObserver);
     }
 
     @Override

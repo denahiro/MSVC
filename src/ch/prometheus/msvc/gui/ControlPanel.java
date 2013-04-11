@@ -4,7 +4,10 @@
  */
 package ch.prometheus.msvc.gui;
 
+import ch.prometheus.msvc.server.ExecutorHolder;
 import ch.prometheus.msvc.server.ServerHandler;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import javax.swing.JPanel;
 
 /**
@@ -17,8 +20,6 @@ public abstract class ControlPanel extends JPanel implements Runnable {
     
     protected final ServerHandler.ServerState currentState;
     
-    protected final Thread myThread=new Thread(this);
-    
     public ControlPanel(MainGUI master,ServerHandler.ServerState currentState) {
         this.master=master;
         this.currentState=currentState;
@@ -26,7 +27,7 @@ public abstract class ControlPanel extends JPanel implements Runnable {
     
     public final void start()
     {
-        this.myThread.start();
+        ExecutorHolder.EXECUTOR.execute(this);
     }
     
     protected final void changeState(ServerHandler.ServerState newState)
