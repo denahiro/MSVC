@@ -4,17 +4,14 @@
  */
 package ch.prometheus.msvc.server;
 
-import ch.prometheus.msvc.gui.MainGUI;
+import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URI;
 import java.net.URLConnection;
 import java.util.Observable;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 /**
  *
@@ -114,22 +111,21 @@ public class ServerHandler {
             if(this.getServerState()==ServerState.STOPPED) {
                 updateServerState(ServerState.UPDATING);
                 SERVER_DIRECTORY.mkdir();
-                InputStream netIn=null;
+                BufferedInputStream netIn=null;
                 OutputStream fileOut=null;
                 try{
                     URLConnection connection=SERVER_SOURCE.toURL().openConnection();
                     long dataTotal=connection.getContentLengthLong();
-                    netIn = connection.getInputStream();
+                    netIn = new BufferedInputStream(connection.getInputStream());
                     fileOut=new FileOutputStream(ServerHandler.SERVER_JAR);
-                    int data;
                     long dataAmount=0;
-                    long divisor=dataTotal/DOWNLOAD_RESOLUTION;
-                    while((data=netIn.read())>=0) {
-                        fileOut.write(data);
-                        ++dataAmount;
-                        if(dataAmount%divisor==0) {
-                            this.updateStateObservable.notifyObservers(new ProgressInfo(dataAmount, dataTotal));
-                        }
+                    int divisor=(int) (dataTotal/DOWNLOAD_RESOLUTION);
+                    byte[] data=new byte[divisor];
+                    int bytesRead;
+                    while((bytesRead=netIn.read(data, 0, divisor))>=0) {
+                        fileOut.write(data,0,bytesRead);
+                        dataAmount+=bytesRead;
+                        this.updateStateObservable.notifyObservers(new ProgressInfo(dataAmount, dataTotal));
                     }
                 } finally {
                     if(netIn!=null) {
