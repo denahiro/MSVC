@@ -6,10 +6,8 @@ package ch.prometheus.msvc.gui;
 
 import ch.prometheus.msvc.server.ServerHandler;
 import ch.prometheus.msvc.server.ServerHandler.ServerState;
-import java.io.IOException;
 import java.util.Observable;
 import java.util.Observer;
-import java.util.logging.Logger;
 import javax.swing.GroupLayout;
 import javax.swing.JLabel;
 import javax.swing.JProgressBar;
@@ -44,49 +42,40 @@ public class ServerUpdatingControlPanel extends ControlPanel {
 
     private void initComponents()
     {
-        GroupLayout layout= new GroupLayout(this);
-        this.setLayout(layout);
+        final GroupLayout myLayout= new GroupLayout(this);
+        this.setLayout(myLayout);
         
-        layout.setHorizontalGroup(layout.createParallelGroup()
+        myLayout.setHorizontalGroup(myLayout.createParallelGroup()
                 .addComponent(this.updatingLabel,GroupLayout.PREFERRED_SIZE,GroupLayout.DEFAULT_SIZE,Short.MAX_VALUE)
                 .addComponent(this.updatingProgress,GroupLayout.PREFERRED_SIZE,GroupLayout.DEFAULT_SIZE,Short.MAX_VALUE));
                 
-        
-        layout.setVerticalGroup(layout.createSequentialGroup()
+        myLayout.setVerticalGroup(myLayout.createSequentialGroup()
                 .addComponent(this.updatingLabel)
                 .addComponent(this.updatingProgress));
     }
     
     @Override
     protected void changeStateImpl(ServerState newState) {
-        switch(newState)
-        {
-            case LAUNCHING:
-                this.master.setControlPanel(new ServerLaunchingControlPanel(master));
-                break;
-            case STOPPED:
-                this.master.setControlPanel(new ServerStoppedControlPanel(master));
-                break;
-            default:
-                throw new IllegalArgumentException("newState was "+newState+" instead of "
-                        +ServerHandler.ServerState.LAUNCHING+" or "+ServerHandler.ServerState.STOPPED+".");
-        }
     }
 
     @Override
-    protected void remove() {
+    protected void removeListeners() {
+        super.removeListeners();
         this.master.getServerHandler().updateStateObservable.deleteObserver(this.progressBarObserver);
     }
 
     @Override
     public void run() {
-        try {
-            this.master.getServerHandler().updateServer();
-        } catch(IOException e) {
-            Logger.getGlobal().throwing(this.getClass().getCanonicalName(), "run", e);
-            this.changeState(ServerHandler.ServerState.STOPPED);
+        this.master.getServerHandler().updateServer();
+        switch(this.nextState)
+        {
+            case LAUNCHING:
+                this.master.setControlPanel(new ServerLaunchingControlPanel(this.master));
+                break;
+            case STOPPED:
+                this.master.setControlPanel(new ServerStoppedControlPanel(this.master));
+                break;
         }
-        this.changeState(this.nextState);
     }
     
 }

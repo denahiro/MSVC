@@ -36,10 +36,7 @@ public class Communicator implements Runnable{
     @Override
     public void run(){
         try {
-            String data;
-            while(!Thread.interrupted() && (data=this.fromServer.readLine())!=null) {
-                this.output.println(data);
-            }
+            printInputToListener();
             this.fromServer.close();
         } catch (IOException e) {
             Logger.getGlobal().throwing(this.getClass().getCanonicalName(), "run()", e);
@@ -48,6 +45,13 @@ public class Communicator implements Runnable{
             this.toServer.close();
             this.toServer=null;
             this.output=null;
+        }
+    }
+
+    private void printInputToListener() throws IOException {
+        String data;
+        while(!Thread.interrupted() && (data=this.fromServer.readLine())!=null) {
+            this.output.println(data);
         }
     }
 }

@@ -12,6 +12,8 @@ import java.io.OutputStream;
 import java.net.URI;
 import java.net.URLConnection;
 import java.util.Observable;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  *
@@ -23,6 +25,7 @@ public class ServerHandler {
     public final static File SERVER_JAR=new File(SERVER_DIRECTORY,"minecraft_server.jar");
     public final static URI SERVER_SOURCE= URI.create("https://s3.amazonaws.com/MinecraftDownload/launcher/minecraft_server.jar");
     public final static long DOWNLOAD_RESOLUTION=100;
+
     
     public enum ServerState {
         RUNNING,STOPPED,LAUNCHING,STOPPING,UPDATING
@@ -42,18 +45,11 @@ public class ServerHandler {
         this.output=output;
     }
     
-    public void launchServer() throws IOException{
+    public void launchServer(){
         synchronized(this) {
             if(this.getServerState()==ServerState.STOPPED) {
                 assert this.isServerFilesReady();
-                this.updateServerState(ServerState.LAUNCHING);
-                ProcessBuilder serverBuilder=new ProcessBuilder("java","-Xmx1024M","-Xms1024M","-jar",SERVER_JAR.getName(),"nogui");
-                serverBuilder.directory(SERVER_DIRECTORY);
-                this.serverInstance=serverBuilder.start();
-                ExecutorHolder.EXECUTOR.execute(new ServerShutdownWaiter());
-                this.serverCom=new Communicator(this.output, this.serverInstance);
-                ExecutorHolder.EXECUTOR.execute(this.serverCom);
-                this.updateServerState(ServerState.RUNNING);
+                launchServerCore();
             } else {
                 throw new IllegalStateException("Can't launch server.");
             }
@@ -78,18 +74,28 @@ public class ServerHandler {
         }
     }
     
-    public void readyServerFiles() throws IOException{
+    public void println(String line) {
         synchronized(this) {
-            if(this.isServerFilesReady()) {
-                SERVER_DIRECTORY.mkdir();
-                updateServer();
+            if(this.getServerState()==ServerState.RUNNING)
+            {
+                this.serverCom.println(line);
+            } else {
+                output.println("The server needs to be running to be able to send commands.");
             }
         }
     }
-    
-    public void println(String line) {
-        synchronized(this) {
-            this.serverCom.println(line);
+
+    private void launchServerCore() {
+        this.updateServerState(ServerState.LAUNCHING);
+        try{
+            startServerProcess();
+            ExecutorHolder.EXECUTOR.execute(new ServerShutdownWaiter());
+            startServerCommunicator();
+            this.updateServerState(ServerState.RUNNING);
+        } catch (IOException e) {
+            Logger.getGlobal().throwing(this.getClass().getCanonicalName(), "launchServerCore()", e);
+            this.output.println(e.toString());
+            this.updateServerState(ServerState.STOPPED);
         }
     }
     
@@ -106,39 +112,67 @@ public class ServerHandler {
         }
     }
     
-    public void updateServer() throws IOException{
+    public void updateServer(){
         synchronized(this) {
             if(this.getServerState()==ServerState.STOPPED) {
                 updateServerState(ServerState.UPDATING);
-                SERVER_DIRECTORY.mkdir();
-                BufferedInputStream netIn=null;
-                OutputStream fileOut=null;
-                try{
-                    URLConnection connection=SERVER_SOURCE.toURL().openConnection();
-                    long dataTotal=connection.getContentLengthLong();
-                    netIn = new BufferedInputStream(connection.getInputStream());
-                    fileOut=new FileOutputStream(ServerHandler.SERVER_JAR);
-                    long dataAmount=0;
-                    int divisor=(int) (dataTotal/DOWNLOAD_RESOLUTION);
-                    byte[] data=new byte[divisor];
-                    int bytesRead;
-                    while((bytesRead=netIn.read(data, 0, divisor))>=0) {
-                        fileOut.write(data,0,bytesRead);
-                        dataAmount+=bytesRead;
-                        this.updateStateObservable.notifyObservers(new ProgressInfo(dataAmount, dataTotal));
-                    }
-                } finally {
-                    if(netIn!=null) {
-                        netIn.close();
-                    }
-                    if(fileOut!=null) {
-                        fileOut.close();
-                    }
-                    this.updateServerState(ServerState.STOPPED);
-                }
+                updateServerCore();
             }  else {
                 throw new IllegalStateException("Can't update server.");
             }
+        }
+    }
+    private void startServerProcess() throws IOException {
+        ProcessBuilder serverBuilder=new ProcessBuilder("java","-Xmx1024M","-Xms1024M","-jar",SERVER_JAR.getName(),"nogui");
+        serverBuilder.directory(SERVER_DIRECTORY);
+        this.serverInstance=serverBuilder.start();
+    }
+
+    private void startServerCommunicator() {
+        this.serverCom=new Communicator(this.output, this.serverInstance);
+        ExecutorHolder.EXECUTOR.execute(this.serverCom);
+    }
+
+    private void updateServerCore() {
+        SERVER_DIRECTORY.mkdir();
+        BufferedInputStream netIn=null;
+        OutputStream fileOut=null;
+        try{
+            URLConnection connection=SERVER_SOURCE.toURL().openConnection();
+            long dataTotal=connection.getContentLengthLong();
+            netIn = new BufferedInputStream(connection.getInputStream());
+            fileOut=new FileOutputStream(ServerHandler.SERVER_JAR);
+            transferUpdateData(dataTotal, netIn, fileOut);
+        } catch(IOException e) {
+            Logger.getGlobal().throwing(this.getClass().getCanonicalName(), "updateServerCore()", e);
+            this.output.println(e.toString());
+        } finally {
+            if(netIn!=null) {
+                try{
+                    netIn.close();
+                } catch(IOException e) {}
+            }
+            if(fileOut!=null) {
+                try {
+                    fileOut.close();
+                } catch (IOException e) {
+                    Logger.getLogger(ServerHandler.class.getName()).log(Level.SEVERE, null, e);
+                    this.output.println(e.toString());
+                }
+            }
+            this.updateServerState(ServerState.STOPPED);
+        }
+    }
+
+    private void transferUpdateData(long dataTotal, BufferedInputStream netIn, OutputStream fileOut) throws IOException {
+        long dataAmount=0;
+        int divisor=(int) (dataTotal/DOWNLOAD_RESOLUTION);
+        byte[] data=new byte[divisor];
+        int bytesRead;
+        while((bytesRead=netIn.read(data, 0, divisor))>=0) {
+            fileOut.write(data,0,bytesRead);
+            dataAmount+=bytesRead;
+            this.updateStateObservable.notifyObservers(new ProgressInfo(dataAmount, dataTotal));
         }
     }
     

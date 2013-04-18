@@ -17,9 +17,7 @@ import javax.swing.JButton;
  */
 public class ServerRunningControlPanel extends ControlPanel{
 
-    private final JButton stateButton=new JButton("stop server");
-    
-    private GroupLayout layout=new GroupLayout(this);
+    private final JButton stopButton=new JButton("stop server");
     
     public ServerRunningControlPanel(MainGUI master) {
         super(master, ServerHandler.ServerState.RUNNING);
@@ -27,47 +25,41 @@ public class ServerRunningControlPanel extends ControlPanel{
     }
     
     private void initComponents() {        
-        this.stateButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                ServerRunningControlPanel.this.changeState(ServerHandler.ServerState.STOPPING);
-            }
-        });
+        initStopButton();
         
-        this.setLayout(this.layout);
+        final GroupLayout myLayout = new GroupLayout(this);
         
-        this.layout.setHorizontalGroup(this.layout.createParallelGroup(GroupLayout.Alignment.LEADING)
-                .addComponent(this.stateButton,GroupLayout.PREFERRED_SIZE,GroupLayout.DEFAULT_SIZE,Short.MAX_VALUE));
+        this.setLayout(myLayout);
         
-        this.layout.setVerticalGroup(this.layout.createSequentialGroup()
-                .addComponent(this.stateButton));
+        myLayout.setHorizontalGroup(myLayout.createParallelGroup(GroupLayout.Alignment.LEADING)
+                .addComponent(this.stopButton,GroupLayout.PREFERRED_SIZE,GroupLayout.DEFAULT_SIZE,Short.MAX_VALUE));
+        
+        myLayout.setVerticalGroup(myLayout.createSequentialGroup()
+                .addComponent(this.stopButton));
     }
 
     
     @Override
     protected void changeStateImpl(ServerState newState) {
-        switch(newState)
+        if(newState==ServerState.STOPPED)
         {
-            case STOPPING:
-                this.master.setControlPanel(new ServerStoppingControlPanel(master));
-                break;
-            case STOPPED:
-                this.master.setControlPanel(new ServerStoppedControlPanel(master));
-                break;
-            default:
-                throw new IllegalArgumentException("newState was "+newState+" instead of "
-                        +ServerHandler.ServerState.STOPPING+" or "+ServerHandler.ServerState.STOPPED+".");
+            this.master.setControlPanel(new ServerStoppedControlPanel(master));
         }
-    }
-
-    @Override
-    protected void remove() {
-        
     }
 
     @Override
     public void run() {
         
+    }
+
+    private void initStopButton() {
+        this.stopButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                ServerRunningControlPanel.this.master.setControlPanel(
+                        new ServerStoppingControlPanel(ServerRunningControlPanel.this.master));
+            }
+        });
     }
     
 }

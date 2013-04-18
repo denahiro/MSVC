@@ -10,6 +10,7 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import javax.swing.GroupLayout;
 import javax.swing.JButton;
+import javax.swing.JDialog;
 
 /**
  *
@@ -17,8 +18,9 @@ import javax.swing.JButton;
  */
 public class ServerStoppedControlPanel extends ControlPanel{
 
-    private final JButton stateButton=new JButton("launch server");
+    private final JButton launchButton=new JButton("launch server");
     private final JButton updateButton=new JButton("update server");
+    private final JButton selectButton=new JButton("select server");
     
     public ServerStoppedControlPanel(MainGUI master) {
         super(master,ServerHandler.ServerState.STOPPED);
@@ -27,56 +29,61 @@ public class ServerStoppedControlPanel extends ControlPanel{
     
     private void initComponents()
     {        
-        this.stateButton.addActionListener(new ActionListener() {
+        initButtons();
+        
+        final GroupLayout myLayout=new GroupLayout(this);
+        this.setLayout(myLayout);
+        
+        myLayout.setHorizontalGroup(myLayout.createParallelGroup(GroupLayout.Alignment.LEADING)
+                .addComponent(this.launchButton,GroupLayout.PREFERRED_SIZE,GroupLayout.DEFAULT_SIZE,Short.MAX_VALUE)
+                .addComponent(this.updateButton,GroupLayout.PREFERRED_SIZE,GroupLayout.DEFAULT_SIZE,Short.MAX_VALUE)
+                .addComponent(this.selectButton,GroupLayout.PREFERRED_SIZE,GroupLayout.DEFAULT_SIZE,Short.MAX_VALUE));
+        
+        myLayout.setVerticalGroup(myLayout.createSequentialGroup()
+                .addComponent(this.launchButton)
+                .addComponent(this.updateButton)
+                .addComponent(this.selectButton));
+    }
+
+    @Override
+    protected void changeStateImpl(ServerState newState) {
+    }
+
+    @Override
+    public void run() {
+    }
+    
+    private void startServerSelectionDialog() {
+        JDialog serverSelector=new ServerSelectionDialog(this.master);
+        serverSelector.setVisible(true);
+    }
+
+    private void initButtons() {
+        this.launchButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                ServerStoppedControlPanel.this.changeState(ServerHandler.ServerState.LAUNCHING);
+                if(ServerStoppedControlPanel.this.master.getServerHandler().isServerFilesReady()) {
+                    ServerStoppedControlPanel.this.master.setControlPanel(
+                        new ServerLaunchingControlPanel(ServerStoppedControlPanel.this.master));
+                } else {
+                    ServerStoppedControlPanel.this.master.setControlPanel(
+                        new ServerUpdatingControlPanel(ServerStoppedControlPanel.this.master
+                        ,ServerHandler.ServerState.LAUNCHING));
+                }
             }
         });
         this.updateButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                ServerStoppedControlPanel.this.changeState(ServerHandler.ServerState.UPDATING);
+                ServerStoppedControlPanel.this.master.setControlPanel(
+                        new ServerUpdatingControlPanel(ServerStoppedControlPanel.this.master,ServerHandler.ServerState.STOPPED));
             }
         });
-        
-        GroupLayout layout=new GroupLayout(this);
-        this.setLayout(layout);
-        
-        layout.setHorizontalGroup(layout.createParallelGroup(GroupLayout.Alignment.LEADING)
-                .addComponent(this.stateButton,GroupLayout.PREFERRED_SIZE,GroupLayout.DEFAULT_SIZE,Short.MAX_VALUE)
-                .addComponent(this.updateButton,GroupLayout.PREFERRED_SIZE,GroupLayout.DEFAULT_SIZE,Short.MAX_VALUE));
-        
-        layout.setVerticalGroup(layout.createSequentialGroup()
-                .addComponent(this.stateButton)
-                .addComponent(this.updateButton));
-    }
-
-    @Override
-    protected void changeStateImpl(ServerState newState) {
-        switch(newState)
-        {
-            case LAUNCHING:
-                if(this.master.getServerHandler().isServerFilesReady()) {
-                    this.master.setControlPanel(new ServerLaunchingControlPanel(master));
-                } else {
-                    this.master.setControlPanel(new ServerUpdatingControlPanel(master,ServerHandler.ServerState.LAUNCHING));
-                }
-                break;
-            case UPDATING:
-                this.master.setControlPanel(new ServerUpdatingControlPanel(master,ServerHandler.ServerState.STOPPED));
-                break;
-            default:
-                throw new IllegalArgumentException("newState was "+newState+" instead of "
-                        +ServerHandler.ServerState.LAUNCHING+" or "+ServerHandler.ServerState.UPDATING+".");
-        }
-    }
-
-    @Override
-    protected void remove() {
-    }
-
-    @Override
-    public void run() {
+        this.selectButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                ServerStoppedControlPanel.this.startServerSelectionDialog();
+            }
+        });
     }
 }
