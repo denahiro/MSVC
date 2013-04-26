@@ -21,6 +21,7 @@ public class ServerStoppedControlPanel extends ControlPanel{
     private final JButton launchButton=new JButton("launch server");
     private final JButton updateButton=new JButton("update server");
     private final JButton selectButton=new JButton("select server");
+    private final JButton settingsButton=new JButton("server settings");
     
     public ServerStoppedControlPanel(MainGUI master) {
         super(master,ServerHandler.ServerState.STOPPED);
@@ -37,12 +38,14 @@ public class ServerStoppedControlPanel extends ControlPanel{
         myLayout.setHorizontalGroup(myLayout.createParallelGroup(GroupLayout.Alignment.LEADING)
                 .addComponent(this.launchButton,GroupLayout.PREFERRED_SIZE,GroupLayout.DEFAULT_SIZE,Short.MAX_VALUE)
                 .addComponent(this.updateButton,GroupLayout.PREFERRED_SIZE,GroupLayout.DEFAULT_SIZE,Short.MAX_VALUE)
-                .addComponent(this.selectButton,GroupLayout.PREFERRED_SIZE,GroupLayout.DEFAULT_SIZE,Short.MAX_VALUE));
+                .addComponent(this.selectButton,GroupLayout.PREFERRED_SIZE,GroupLayout.DEFAULT_SIZE,Short.MAX_VALUE)
+                .addComponent(this.settingsButton,GroupLayout.PREFERRED_SIZE,GroupLayout.DEFAULT_SIZE,Short.MAX_VALUE));
         
         myLayout.setVerticalGroup(myLayout.createSequentialGroup()
                 .addComponent(this.launchButton)
                 .addComponent(this.updateButton)
-                .addComponent(this.selectButton));
+                .addComponent(this.selectButton)
+                .addComponent(this.settingsButton));
     }
 
     @Override
@@ -51,11 +54,6 @@ public class ServerStoppedControlPanel extends ControlPanel{
 
     @Override
     public void run() {
-    }
-    
-    private void startServerSelectionDialog() {
-        JDialog serverSelector=new ServerSelectionDialog(this.master);
-        serverSelector.setVisible(true);
     }
 
     private void initButtons() {
@@ -82,7 +80,15 @@ public class ServerStoppedControlPanel extends ControlPanel{
         this.selectButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                ServerStoppedControlPanel.this.startServerSelectionDialog();
+                JDialog serverSelector=new ServerSelectionDialog(ServerStoppedControlPanel.this.master);
+                serverSelector.setVisible(true);
+            }
+        });
+        this.settingsButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                JDialog serverSettings=new ServerSettingsDialog(ServerStoppedControlPanel.this.master);
+                serverSettings.setVisible(true);
             }
         });
     }

@@ -15,7 +15,7 @@ import javax.swing.JLabel;
  */
 public class ServerSelectionDialog extends JDialog{
 
-    JLabel dummy=new JLabel("to be done");
+    private JLabel dummy=new JLabel("to be done");
     
     public ServerSelectionDialog(Window owner) {
         super(owner, "Select Server", ModalityType.DOCUMENT_MODAL);
