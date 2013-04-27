@@ -5,7 +5,10 @@
 package ch.prometheus.msvc.gui.settings;
 
 import ch.prometheus.msvc.server.ServerHandler;
+import java.awt.Font;
 import java.awt.Window;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.File;
@@ -20,6 +23,7 @@ import java.util.Properties;
 import java.util.logging.Logger;
 import javax.swing.GroupLayout;
 import javax.swing.GroupLayout.Group;
+import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JDialog;
 import javax.swing.JLabel;
@@ -37,8 +41,11 @@ public class ServerSettingsDialog extends JDialog{
     
     private final Properties loadedProperties;
     
-    private final JLabel titleLabel=new JLabel("current world:");
+    private final JLabel titleLabel=new JLabel("Current World:");
     private final JLabel worldNameLabel=new JLabel();
+    
+    private final JButton saveButton=new JButton("save");
+    private final JButton cancelButton=new JButton("cancel");
     
     private boolean isDirty=false;
     
@@ -54,6 +61,8 @@ public class ServerSettingsDialog extends JDialog{
         this.loadedProperties=initProperties(defaultPorperties);
         
         initPropertyList();
+        
+        initButtons();
         
         initComponents();
     }
@@ -73,13 +82,24 @@ public class ServerSettingsDialog extends JDialog{
         
         GroupLayout.Group horizontalLabelGroup=myLayout.createParallelGroup(GroupLayout.Alignment.LEADING);
         GroupLayout.Group horizontalControlGroup=myLayout.createParallelGroup(GroupLayout.Alignment.LEADING);
-        myLayout.setHorizontalGroup(myLayout.createSequentialGroup()
-                .addGroup(horizontalLabelGroup)
-                .addGroup(horizontalControlGroup));
+        GroupLayout.Group horizontalSaveCancelGroup=myLayout.createSequentialGroup();
+        myLayout.setHorizontalGroup(myLayout.createParallelGroup(GroupLayout.Alignment.LEADING)
+                .addGroup(myLayout.createSequentialGroup()
+                    .addGroup(horizontalLabelGroup)
+                    .addGroup(horizontalControlGroup))
+                .addGroup(horizontalSaveCancelGroup));
         
         GroupLayout.Group verticalGroup=myLayout.createSequentialGroup();
         myLayout.setVerticalGroup(verticalGroup);
         
+        this.titleLabel.setFont(new Font(
+                this.titleLabel.getFont().getFontName(),
+                Font.BOLD,
+                Math.round(this.titleLabel.getFont().getSize()*1.5f)));
+        this.worldNameLabel.setFont(new Font(
+                this.worldNameLabel.getFont().getFontName(),
+                Font.BOLD,
+                Math.round(this.worldNameLabel.getFont().getSize()*1.5f)));
         this.worldNameLabel.setText(this.loadedProperties.getProperty("level-name"));
         addLabelControlPair(this.titleLabel, this.worldNameLabel, horizontalLabelGroup, horizontalControlGroup, verticalGroup, myLayout);
         
@@ -87,12 +107,39 @@ public class ServerSettingsDialog extends JDialog{
             addLabelControlPair(pc.getLabel(), pc.getControl(), horizontalLabelGroup, horizontalControlGroup, verticalGroup, myLayout);
         }
         
+        horizontalSaveCancelGroup
+                .addComponent(this.saveButton)
+                .addComponent(this.cancelButton);
+        verticalGroup.addGroup(myLayout.createParallelGroup(GroupLayout.Alignment.LEADING)
+                .addComponent(this.saveButton)
+                .addComponent(this.cancelButton));
+        
+        myLayout.linkSize(this.saveButton,this.cancelButton);
+        
         myLayout.setAutoCreateContainerGaps(true);
         myLayout.setAutoCreateGaps(true);
         
         pack();
         
         this.setLocationRelativeTo(this.getOwner());
+    }
+    
+    private void initButtons() {
+        this.saveButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent ae) {
+                ServerSettingsDialog.this.saveProperties();
+                ServerSettingsDialog.this.onWindowClosing();
+            }
+        });
+        
+        this.cancelButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent ae) {
+                ServerSettingsDialog.this.isDirty=false;
+                ServerSettingsDialog.this.onWindowClosing();
+            }
+        });
     }
 
     private Properties initDefaultProperties() {
@@ -138,6 +185,7 @@ public class ServerSettingsDialog extends JDialog{
     private void saveProperties() {
         try(Writer outputWriter=new FileWriter(PROPERTY_FILE)) {
             this.loadedProperties.store(outputWriter, "Minecraft server properties");
+            this.isDirty=false;
         } catch (IOException ie) {
             System.out.println(ie);
         }
@@ -157,11 +205,11 @@ public class ServerSettingsDialog extends JDialog{
         this.propertyList.add(new TextPropertyControl(this, "generator-settings"));
         this.propertyList.add(new BooleanPropertyControl(this, "allow-nether"));
         this.propertyList.add(new BooleanPropertyControl(this, "allow-flight"));
-        this.propertyList.add(new TextPropertyControl(this, "server-port"));
+        this.propertyList.add(new IntegerPropertyControl(this, "server-port",1024,65535));
         this.propertyList.add(new TextPropertyControl(this, "level-type"));
         this.propertyList.add(new TextPropertyControl(this, "level-seed"));
         this.propertyList.add(new TextPropertyControl(this, "server-ip"));
-        this.propertyList.add(new TextPropertyControl(this, "max-build-height"));
+        this.propertyList.add(new IntegerPropertyControl(this, "max-build-height",0,256));
         this.propertyList.add(new BooleanPropertyControl(this, "spawn-npcs"));
         this.propertyList.add(new BooleanPropertyControl(this, "white-list"));
         this.propertyList.add(new BooleanPropertyControl(this, "spawn-animals"));
@@ -169,11 +217,11 @@ public class ServerSettingsDialog extends JDialog{
         this.propertyList.add(new TextPropertyControl(this, "texture-pack"));
         this.propertyList.add(new BooleanPropertyControl(this, "online-mode"));
         this.propertyList.add(new BooleanPropertyControl(this, "pvp"));
-        this.propertyList.add(new TextPropertyControl(this, "difficulty"));
-        this.propertyList.add(new TextPropertyControl(this, "gamemode"));
-        this.propertyList.add(new TextPropertyControl(this, "max-players"));
+        this.propertyList.add(new ChoicePropertyControl(this, "difficulty",PropertyChoice.difficultyChoices));
+        this.propertyList.add(new ChoicePropertyControl(this, "gamemode",PropertyChoice.gamemodeChoices));
+        this.propertyList.add(new IntegerPropertyControl(this, "max-players",1,Integer.MAX_VALUE));
         this.propertyList.add(new BooleanPropertyControl(this, "spawn-monsters"));
-        this.propertyList.add(new TextPropertyControl(this, "view-distance"));
+        this.propertyList.add(new IntegerPropertyControl(this, "view-distance",1,Integer.MAX_VALUE));
         this.propertyList.add(new BooleanPropertyControl(this, "generate-structures"));
         this.propertyList.add(new TextPropertyControl(this, "motd"));
     }
