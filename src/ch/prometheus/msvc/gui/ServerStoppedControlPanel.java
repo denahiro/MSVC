@@ -4,6 +4,7 @@
  */
 package ch.prometheus.msvc.gui;
 
+import ch.prometheus.msvc.gui.settings.ServerSettingsDialog;
 import ch.prometheus.msvc.server.ServerHandler;
 import ch.prometheus.msvc.server.ServerHandler.ServerState;
 import java.awt.event.ActionEvent;
