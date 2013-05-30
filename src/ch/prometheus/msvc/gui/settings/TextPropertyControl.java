@@ -4,6 +4,7 @@
  */
 package ch.prometheus.msvc.gui.settings;
 
+import ch.prometheus.msvc.gui.ServerSettingsDialog;
 import javax.swing.JComponent;
 import javax.swing.JTextField;
 
@@ -14,10 +15,10 @@ import javax.swing.JTextField;
 public class TextPropertyControl extends PropertyControl{
 
     protected final JTextField control=new JTextField();
-    
-    public TextPropertyControl(ServerSettingsDialog owner, String propertyName) {
+
+    public TextPropertyControl(PropertyHandler owner, String propertyName) {
         super(owner, propertyName);
-        
+
         this.control.setText(this.owner.getProperty(this.propertyName));
         this.control.addActionListener(new PropertyControl.ControlCallback());
     }

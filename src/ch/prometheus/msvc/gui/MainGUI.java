@@ -13,6 +13,7 @@ import java.awt.event.ActionListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import javax.swing.GroupLayout;
+import javax.swing.JFrame;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
@@ -23,15 +24,15 @@ import javax.swing.ScrollPaneConstants;
  *
  * @author Denahiro
  */
-public class MainGUI extends javax.swing.JFrame{
+public class MainGUI extends JFrame{
 
     private static final int MIN_WIDTH=600;
     private static final int MIN_HEIGHT=400;
-    
+
     private final ServerHandler myServerHandler;
-    
+
     private final GroupLayout myLayout=new GroupLayout(getContentPane());;
-    
+
     public MainGUI(){
         this.myServerHandler=new ServerHandler(new PrintListener() {
             @Override
@@ -39,31 +40,31 @@ public class MainGUI extends javax.swing.JFrame{
                 MainGUI.this.serverOutputPrintLine(line);
             }
         });
-        
+
         this.controlPanel=new ServerStoppedControlPanel(this);
-        
+
         initComponents();
-    }    
-    
+    }
+
     private ControlPanel controlPanel;
     private final Object controlPanelMutex=new Object();
     private final JTextField inputLine=new JTextField();
     private final JTextArea outputTextArea=new JTextArea();
     private final JScrollPane outputScrollPane=new JScrollPane(outputTextArea);
-    
+
     private void initComponents() {
         this.setMinimumSize(new Dimension(MIN_WIDTH, MIN_HEIGHT));
-        
+
         initClosingAction();
         initOutputTextArea();
         initInputLine();
         initLayout();
-        
+
         this.setLocationByPlatform(true);
-        
+
         pack();
     }
-    
+
     public void setControlPanel(ControlPanel newControlPanel) {
         synchronized(this.controlPanelMutex) {
             this.myLayout.replace(this.controlPanel, newControlPanel);
@@ -71,16 +72,16 @@ public class MainGUI extends javax.swing.JFrame{
             this.controlPanel.start();
         }
     }
-    
+
     public ServerHandler getServerHandler() {
         return this.myServerHandler;
     }
-    
+
     private void serverInputLineAction(ActionEvent event) {
         this.myServerHandler.println(this.inputLine.getText());
         this.inputLine.setText(null);
     }
-    
+
     private void serverOutputPrintLine(String newLine) {
         this.outputTextArea.append(newLine+System.lineSeparator());
         this.outputTextArea.setCaretPosition(this.outputTextArea.getDocument().getLength());
@@ -133,8 +134,8 @@ public class MainGUI extends javax.swing.JFrame{
                 .addComponent(this.inputLine,GroupLayout.PREFERRED_SIZE,GroupLayout.DEFAULT_SIZE,GroupLayout.PREFERRED_SIZE))
             .addComponent(this.controlPanel)
         );
-        
-        
+
+
         myLayout.setAutoCreateGaps(true);
         myLayout.setAutoCreateContainerGaps(true);
     }

@@ -4,6 +4,7 @@
  */
 package ch.prometheus.msvc.gui.settings;
 
+import ch.prometheus.msvc.gui.ServerSettingsDialog;
 import javax.swing.JCheckBox;
 import javax.swing.JComponent;
 
@@ -14,10 +15,10 @@ import javax.swing.JComponent;
 public class BooleanPropertyControl extends PropertyControl{
 
     protected final JCheckBox control=new JCheckBox();
-    
-    public BooleanPropertyControl(ServerSettingsDialog owner, String propertyName) {
+
+    public BooleanPropertyControl(PropertyHandler owner, String propertyName) {
         super(owner, propertyName);
-        
+
         this.control.setSelected(Boolean.parseBoolean(this.owner.getProperty(this.propertyName)));
         this.control.addActionListener(new PropertyControl.ControlCallback());
     }
