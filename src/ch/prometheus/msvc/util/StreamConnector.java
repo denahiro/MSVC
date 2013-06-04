@@ -41,15 +41,8 @@ public class StreamConnector implements Callable<Boolean> {
 
     @Override
     public final Boolean call() throws IOException {
-        boolean completed = false;
-        try {
-            transferBytes();
-            completed = true;
-        } finally {
-            inStream.close();
-            outStream.close();
-            return completed;
-        }
+        transferBytes();
+        return true;
     }
 
     protected void fireEvent(int totalBytesRead) {
