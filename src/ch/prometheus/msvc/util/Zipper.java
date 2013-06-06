@@ -30,6 +30,10 @@ public class Zipper extends CloseableTask {
         this.basePath = basePath;
     }
 
+    public Zipper(File zipFile, Collection<File> toZip) throws FileNotFoundException {
+        this(zipFile, toZip, new File("."));
+    }
+
     @Override
     public Boolean call() throws IOException {
         processFiles(toZip);

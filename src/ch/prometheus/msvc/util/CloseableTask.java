@@ -11,5 +11,5 @@ import java.util.concurrent.Callable;
  *
  * @author stko
  */
-public abstract class CloseableTask implements Closeable, Callable<Boolean> {
+public abstract class CloseableTask implements Closeable, Callable<Boolean>, AutoCloseable {
 }

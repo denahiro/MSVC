@@ -19,7 +19,7 @@ import org.junit.Test;
  *
  * @author stko
  */
-public class TestZipper {
+public class ZipperTest {
 
     private static final File basePath = new File("tmpTest");
     private Callable<Boolean> zipper;
@@ -29,7 +29,7 @@ public class TestZipper {
     private Collection<String> files = new ArrayList<>();
     private Collection<File> sources = new ArrayList<>();
 
-    public TestZipper() {
+    public ZipperTest() {
     }
 
     @Before
