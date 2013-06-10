@@ -4,6 +4,7 @@
  */
 package ch.prometheus.msvc.gui.settings;
 
+import ch.prometheus.msvc.server.files.PropertyHandler;
 import ch.prometheus.msvc.gui.ServerSettingsDialog;
 import javax.swing.JCheckBox;
 import javax.swing.JComponent;

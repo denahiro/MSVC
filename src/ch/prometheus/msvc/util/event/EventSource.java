@@ -4,6 +4,7 @@
  */
 package ch.prometheus.msvc.util.event;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.concurrent.locks.ReentrantLock;
@@ -39,20 +40,23 @@ public class EventSource<EventType extends Event> {
     }
 
     public final void fireEvent(EventType event) {
-        callListeners(getListenerArray(), event);
+        callListeners(copyListeners(), event);
     }
 
-    protected EventListener<EventType>[] getListenerArray() {
+    private Collection<EventListener<EventType>> copyListeners() {
         listenerLock.lock();
         try {
-            EventListener<EventType>[] toCall = new EventListener[listeners.size()];
-            return listeners.toArray(toCall);
+            Collection<EventListener<EventType>> copy = new ArrayList<>();
+            for (EventListener<EventType> listener : listeners) {
+                copy.add(listener);
+            }
+            return copy;
         } finally {
             listenerLock.unlock();
         }
     }
 
-    protected void callListeners(EventListener<EventType>[] toCall, EventType event) {
+    private void callListeners(Collection<EventListener<EventType>> toCall, EventType event) {
         eventLock.lock();
         try {
             for (EventListener<EventType> listener : toCall) {

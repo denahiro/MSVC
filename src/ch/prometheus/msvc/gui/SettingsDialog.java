@@ -5,20 +5,20 @@
 package ch.prometheus.msvc.gui;
 
 import ch.prometheus.msvc.gui.settings.PropertyControl;
-import ch.prometheus.msvc.gui.settings.PropertyHandler;
-import ch.prometheus.msvc.server.ServerHandler;
+import ch.prometheus.msvc.server.files.PropertyHandler;
+import ch.prometheus.msvc.server.files.ServerData;
 import java.awt.Font;
 import java.awt.Window;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
-import java.io.File;
 import javax.swing.GroupLayout;
 import javax.swing.GroupLayout.Group;
 import javax.swing.JButton;
 import javax.swing.JDialog;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.WindowConstants;
 
 /**
@@ -41,7 +41,8 @@ public class SettingsDialog extends JDialog {
 
         initWindowClosingBehaviour();
 
-        properties = new PropertyHandler(new File(ServerHandler.SERVER_DIRECTORY, "server.properties"));
+        properties = new ServerData().getProperties();
+//        properties = new PropertyHandler(new File(ServerHandler.SERVER_DIRECTORY, "server.properties"));
 
         initComponents();
     }
@@ -80,8 +81,19 @@ public class SettingsDialog extends JDialog {
     }
 
     private void onWindowClosing() {
-        if (properties.onClosing(this)) {
-            this.dispose();
+        if (properties.isDirty()) {
+            int closingResponse = JOptionPane.showConfirmDialog(this, "Would you like to save the modified settings?");
+            switch (closingResponse) {
+                case 0:
+                    properties.savePropertyChanges();
+                    this.dispose();
+                    break;
+                case 1:
+                    this.dispose();
+                    break;
+                case 2:
+                    break;
+            }
         }
     }
 
@@ -107,7 +119,7 @@ public class SettingsDialog extends JDialog {
     private void initHorizontalGroups() {
         horizontalLabelGroup = myLayout.createParallelGroup(GroupLayout.Alignment.LEADING);
         horizontalControlGroup = myLayout.createParallelGroup(GroupLayout.Alignment.LEADING);
-        horizontalGroup=myLayout.createParallelGroup(GroupLayout.Alignment.LEADING)
+        horizontalGroup = myLayout.createParallelGroup(GroupLayout.Alignment.LEADING)
                 .addGroup(myLayout.createSequentialGroup()
                 .addGroup(horizontalLabelGroup)
                 .addGroup(horizontalControlGroup));

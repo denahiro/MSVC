@@ -10,9 +10,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Collection;
-import java.util.Date;
 import java.util.HashSet;
-import java.util.Properties;
 
 /**
  *
@@ -22,7 +20,7 @@ public class ServerData {
 
     private static final String DEFAULT_PROPERTY_RESOURCE = "server.properties";
     private final Collection<File> loadedFiles = new HashSet<>();
-    private Properties properties;
+    private PropertyHandler properties;
     private String name;
 
     public ServerData() {
@@ -54,6 +52,10 @@ public class ServerData {
         return name;
     }
 
+    public PropertyHandler getProperties() {
+        return properties;
+    }
+
     private void deleteRecursion(File f) {
         if (f.isDirectory()) {
             File[] next = f.listFiles();
@@ -65,7 +67,7 @@ public class ServerData {
     }
 
     private void createName(File localDirectory) {
-        name = properties.getProperty("level-name");
+        name = getProperties().getProperty("level-name");
         String serverPostFix = "";
         int postFix = 0;
         while (new File(localDirectory, name + serverPostFix).exists()) {
@@ -73,13 +75,12 @@ public class ServerData {
             serverPostFix = Integer.toString(postFix);
         }
         name = name + serverPostFix;
-        properties.setProperty("level-name", name);
+        getProperties().setProperty("level-name", name);
     }
 
     private void loadDefaultProperties() throws IOException {
         try (InputStream inStream = this.getClass().getResourceAsStream(DEFAULT_PROPERTY_RESOURCE)) {
-            properties = new Properties();
-            properties.load(inStream);
+            properties = new PropertyHandler(inStream);
         }
     }
 
@@ -87,7 +88,7 @@ public class ServerData {
         File propertyFile = new File(localDirectory, DEFAULT_PROPERTY_RESOURCE);
         propertyFile.getParentFile().mkdirs();
         try (OutputStream outStream = new FileOutputStream(propertyFile)) {
-            properties.store(outStream, "Written by MSVC at " + new Date().toString());
+            properties.savePropertyChanges(outStream);
         }
         loadedFiles.add(propertyFile);
     }

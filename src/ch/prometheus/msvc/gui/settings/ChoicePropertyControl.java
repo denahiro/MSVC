@@ -4,6 +4,7 @@
  */
 package ch.prometheus.msvc.gui.settings;
 
+import ch.prometheus.msvc.server.files.PropertyHandler;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
